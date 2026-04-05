@@ -24,7 +24,7 @@ const Navbar = () => {
     const { data: session } = useSession()
     const user = session?.user
     const isAuthenticated = Boolean(user)
-    const isAdmin = user?.role === 'admin'
+    // const isAdmin = user?.role === 'admin'
 
     const [isAuthOpen, setIsAuthOpen] = useState(false);
     const router = useRouter()
@@ -93,7 +93,7 @@ const Navbar = () => {
                         ) : (
                             <div className="relative" id="user-drop-btn">
                                 <button onClick={() => setUserDropOpen((v) => !v)}
-                                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+                                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer">
                                     <div className="w-8 h-8 rounded-lg bg-black text-white text-sm font-bold flex items-center justify-center">
                                         {user?.name?.charAt(0).toUpperCase()}
                                     </div>
@@ -103,11 +103,13 @@ const Navbar = () => {
                                     </div>
                                     <ChevronDown size={14} className={`text-gray-500 transition-transform ${userDropOpen ? 'rotate-180' : ''}`} />
                                 </button>
+
+                                {/* Dropdown */}
                                 <AnimatePresence>
                                     {userDropOpen && (
                                         <motion.div initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
                                             exit={{ opacity: 0, y: 8, scale: 0.95 }} transition={{ duration: 0.15 }}
-                                            className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-50">
+                                            className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-50 cursor-pointer">
 
                                             <button onClick={() => { handleNavigate('/partner/onboarding/vehicle'); setUserDropOpen(false) }}
                                                 className="relative w-full px-4 py-3 text-sm font-medium text-left hover:bg-green-50 h-10 transition-colors flex items-center cursor-pointer ">
@@ -125,10 +127,10 @@ const Navbar = () => {
 
                                             <div className="border-t border-gray-100" />
                                             <button onClick={() => { handleNavigate('/profile'); setUserDropOpen(false) }}
-                                                className="w-full px-4 py-3 text-sm font-medium text-left hover:bg-gray-50 transition-colors">My Profile</button>
+                                                className="w-full px-4 py-3 text-sm font-medium text-left hover:bg-gray-50 transition-colors cursor-pointer">My Profile</button>
                                             <div className="border-t border-gray-100" />
                                             <button onClick={() => { handleLogout(); setUserDropOpen(false) }}
-                                                className="w-full px-4 py-3 text-sm font-medium text-left text-red-600 hover:bg-red-50 transition-colors">Logout</button>
+                                                className="w-full px-4 py-3 text-sm font-medium text-left text-red-600 hover:bg-red-50 transition-colors cursor-pointer">Logout</button>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>

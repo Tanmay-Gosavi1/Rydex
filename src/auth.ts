@@ -1,8 +1,9 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
-import User from "./models/userModel"
+import User from "./models/user.model"
 import bcrypt from "bcryptjs"
 import Google from "next-auth/providers/google"
+import connectDB from "./libs/db"
  
 export const { handlers, signIn, signOut, auth } = NextAuth({
     // Configure one or more authentication providers...
@@ -20,27 +21,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     placeholder: "*****",
                 },
             },
-            async authorize(credentials , req) {
+            async authorize(credentials) {
+                await connectDB(); 
                 const email = credentials?.email
                 const password = credentials?.password as string
 
                 if(!email || !password) {
-                    throw new Error("Missing credentials");
+                    return null;
                 }
                 
                 const user = await User.findOne({ email })
                 if (!user) {
-                    throw new Error("User not found");
+                    return null;
                 }
 
                 const isMatch = await bcrypt.compare(password ,  user.password)
                 if (!isMatch) {
-                    throw new Error("Invalid password");
+                    return null;
                 }
 
                 return {
                     id: user._id ,
-                    name: user.name,
+                    name: user.username,
                     email: user.email,
                     role : user.role
                 };
@@ -53,6 +55,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     ],
     // callbacks: after or before sign in, sign out, etc.
     callbacks: {
+        // This callback is called whenever a user tries to sign in, regardless of the provider used.
+        async signIn({ user, account }) {
+            try {
+                if (account?.provider === "google") {
+                    await connectDB();
+
+                    if (!user.email) return false;
+
+                    let dbUser = await User.findOne({ email: user.email });
+
+                    if (!dbUser) {
+                        dbUser = await User.create({
+                            username: user.name,
+                            email: user.email,
+                            role: "user",
+                            provider: "google"
+                        });
+                    }
+
+                    user.id = dbUser._id.toString();
+                    user.role = dbUser.role;
+                }
+
+                return true;
+
+            } catch (error) {
+                console.error("SIGNIN ERROR:", error);
+                return false; // 🔥 causes access denied
+            }
+        },
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;
@@ -71,6 +103,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
             return session;
         },
+
     },
     pages : {
         signIn : "/signin",

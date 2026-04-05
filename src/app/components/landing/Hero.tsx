@@ -4,11 +4,20 @@ import {
     LoaderPinwheel, ChevronDown, ArrowRight,
     Star, Shield, Zap,
 } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 
 
 const Hero = ({openAuth} : {openAuth : ()=>void})=> {
-    const handleCTA = () => openAuth();
+   
+    const { data: session } = useSession()
+    const user = session?.user
+    const isAuthenticated = Boolean(user)
+
+    const handleCTA = () => {
+        if(isAuthenticated) return;
+        openAuth();
+    }
 
     return (
         <>

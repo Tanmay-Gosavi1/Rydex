@@ -21,23 +21,63 @@ const AuthModal = ({isOpen , onClose} : propType) => {
   const [email , setEmail] = useState('');
   const [password , setPassword] = useState('');
   const [username , setUserName] = useState('');
+  const [otp , setOtp] = useState(["","","","","",""]);
   const [loading , setLoading] = useState(false);
   const [err , setErr] = useState('');
 
-  const handleSignup = async () => {
+  const handleOtpChange = (index : number , value : string) => {
+    if(value.length > 1) return;
+    if(!/^[0-9]?$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    if(value && index < otp.length - 1){
+      document.getElementById(`otp-${index + 1}`)?.focus();
+    }
+    if(!value && index > 0){
+      document.getElementById(`otp-${index - 1}`)?.focus();
+    }
+  }
+  const sendOTP = async () => {
     setErr('');
-    const payload = { username , email, password };
     setLoading(true);
     try {
-      const res = await axios.post('/api/auth/register' , payload);
+      const res = await axios.post('/api/auth/send-otp' , { email });
+      if(res.data.success){
+        setStep('otp');
+      } else {
+        setErr(res.data.error || 'An error occurred while sending OTP');
+      }
+    }
+    catch (error: unknown) {
+      console.error(error);
+      if (axios.isAxiosError(error)) {
+        setErr(error.response?.data?.error || 'An error occurred while sending OTP');
+      } else {
+        setErr('An error occurred while sending OTP');
+      }
+    }finally {
+      setLoading(false);
+    }
+  }
+
+  const handleSignup = async () => {
+    setErr('');
+    const payload = { username , email, password , otp : otp.join('') };
+    setLoading(true);
+    try {
+      const res = await axios.post('/api/auth/verify-otp' , payload);
       if(res.data.success){
         const loginRes = await signIn('credentials' , { email, password, redirect: false });
         if(loginRes?.error){
-          setErr(loginRes.error);
+          setErr("Invalid email or password");
+          setLoading(false);
           return;
         }
         router.refresh();
         onClose();
+      }else{
+        setErr(res.data.error || 'An error occurred during signup');
       }
 
     } catch (error: unknown) {
@@ -52,23 +92,28 @@ const AuthModal = ({isOpen , onClose} : propType) => {
     }
   }
 
+  // Login
   const handleLogin = async () => {
     setErr('');
     setLoading(true);
-    const res = await signIn('credentials' , { email, password, redirect: false })
-    if(res?.error){
-      setErr(res.error);
-    } else {
-      router.refresh();
-      onClose();
+    try {
+      const res = await signIn('credentials' , { email, password, redirect: false })
+      if(res?.error){
+        setErr("Invalid email or password");
+      } else {
+        router.refresh();
+        onClose();
+      }
+      setLoading(false);
+    } catch (error) {
+      setErr("An error occurred during login");
+      setLoading(false);
     }
-    setLoading(false);
   }
 
+  // Google Login
   const handleGoogleLogin = async () => {
-    setLoading(true);
     await signIn('google', { callbackUrl: '/' });
-    setLoading(false);
   }
 
   return (
@@ -110,8 +155,9 @@ const AuthModal = ({isOpen , onClose} : propType) => {
 
               {/* OAuth */}
               <div>
-                <button className='w-full text-sm mt-6 px-4 py-2 bg-black text-white rounded-lg hover:scale-105 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2' 
-                  onClick={handleGoogleLogin}>
+                <button className='w-full text-sm mt-6 px-4 py-2 bg-black text-white rounded-lg hover:scale-105 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed disabled:opacity-50' 
+                  onClick={handleGoogleLogin}
+                  disabled={loading}>
                   <Image src='/google.png' alt='Google' width={14} height={14}/>
                   Continue with Google
                 </button>
@@ -134,23 +180,30 @@ const AuthModal = ({isOpen , onClose} : propType) => {
                     transition={{ duration: 0.45, ease: 'easeInOut' }}
                     className='flex flex-col items-center justify-center gap-3'>
                       <h1 className='text-center font-medium mb-3'>Welcome back</h1>
-                      <div className='w-full border border-gray-300 rounded-lg px-3 py-2 flex items-center gap-3'>
-                        <Mail size={18} className='text-gray-400'/>
-                        <input type='email' placeholder='Enter your email' value={email} onChange={(e) => setEmail(e.target.value)} className='w-full outline-none text-gray-500 text-sm font-medium'/>
-                      </div>
-                      <div className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black flex items-center gap-3'>
-                        <Lock size={18} className='text-gray-400'/>
-                        <input type='password' placeholder='Enter your password' value={password} onChange={(e) => setPassword(e.target.value)} className='w-full outline-none text-gray-500 text-sm font-medium'/>
-                      </div>
-                      {err && (
-                        <div className='w-full bg-red-100 text-red-500 text-sm px-3 py-2 rounded-lg mt-2 border-dashed border border-red-400 flex items-center justify-center'>
-                          {err}
+                      <form className='w-full flex flex-col items-center justify-center gap-3'
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleLogin();
+                        }}
+                      >
+                        <div className='w-full border border-gray-300 rounded-lg px-3 py-2 flex items-center gap-3'>
+                          <Mail size={18} className='text-gray-400'/>
+                          <input required type='email' placeholder='Enter your email' value={email} onChange={(e) =>{ setEmail(e.target.value); setErr('')}} className='w-full outline-none text-gray-500 text-sm font-medium'/>
                         </div>
-                      )}
-                      <button className='w-full text-sm mt-2 px-4 py-2 bg-black text-white rounded-lg hover:scale-105 transition-all duration-200 cursor-pointer disabled:bg-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed disabled:opacity-50' 
-                        onClick={handleLogin} disabled={loading}>
-                        {loading ? 'Logging in...' : 'Login'}
-                      </button>
+                        <div className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black flex items-center gap-3'>
+                          <Lock size={18} className='text-gray-400'/>
+                          <input required type='password' placeholder='Enter your password' value={password} onChange={(e) => {setPassword(e.target.value) ; setErr('')} } className='w-full outline-none text-gray-500 text-sm font-medium'/>
+                        </div>
+                        {err && (
+                          <div className='w-full bg-red-100 text-red-500 text-sm px-3 py-2 rounded-lg mt-2 border-dashed border border-red-400 flex items-center justify-center'>
+                            {err}
+                          </div>
+                        )}
+                        <button className='w-full text-sm mt-2 px-4 py-2 bg-black text-white rounded-lg hover:scale-105 transition-all duration-200 cursor-pointer disabled:bg-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed disabled:opacity-50' 
+                          type='submit' disabled={loading}>
+                          {loading ? 'Logging in...' : 'Login'}
+                        </button>
+                      </form>
                       <p className='text-xs text-gray-500 mt-4'>Don&#39;t have an account? <span className='text-black font-medium cursor-pointer text-sm hover:underline transition-all duration-200' 
                         onClick={() => setStep('signup')}>Sign up</span></p>
                   </motion.div>
@@ -164,31 +217,82 @@ const AuthModal = ({isOpen , onClose} : propType) => {
                     transition={{ duration: 0.45, ease: 'easeInOut' }}
                     className='flex flex-col items-center justify-center gap-3'>
                       <h1 className='text-center mb-3 font-medium'>Create an account</h1>
-                      <div className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black flex items-center gap-3'>
-                        <User size={18} className='text-gray-400'/>
-                        <input type='text' placeholder='Enter your name' value={username} onChange={(e) => setUserName(e.target.value)} className='w-full outline-none text-gray-500 text-sm font-medium'/>
-                      </div>
-                      <div className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black flex items-center gap-3'>
-                        <Mail size={18} className='text-gray-400'/>
-                        <input type='email' placeholder='Enter your email' value={email} onChange={(e) => setEmail(e.target.value)} className='w-full outline-none text-gray-500 text-sm font-medium'/>
-                      </div>
-                      <div className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black flex items-center gap-3'>
-                        <Lock size={18} className='text-gray-400'/>
-                        <input type='password' placeholder='Enter your password' value={password} onChange={(e) => setPassword(e.target.value)} className='w-full outline-none text-gray-500 text-sm font-medium'/>
-                      </div>
-
-                      {err && (
-                        <div className='w-full bg-red-100 text-red-500 text-sm px-3 py-2 rounded-lg mt-2 border-dashed border border-red-400 flex items-center justify-center'>
-                          {err}
+                      <form className='w-full flex flex-col items-center justify-center gap-3'
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          sendOTP();
+                        }}
+                      >
+                        <div className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black flex items-center gap-3'>
+                          <User size={18} className='text-gray-400'/>
+                          <input required type='text' placeholder='Enter your name' value={username} onChange={(e) => {setUserName(e.target.value)}} className='w-full outline-none text-gray-500 text-sm font-medium'/>
                         </div>
-                      )}
+                        <div className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black flex items-center gap-3'>
+                          <Mail size={18} className='text-gray-400'/>
+                          <input required type='email' placeholder='Enter your email' value={email} onChange={(e) => {setEmail(e.target.value); setErr('')}} className='w-full outline-none text-gray-500 text-sm font-medium'/>
+                        </div>
+                        <div className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black flex items-center gap-3'>
+                          <Lock size={18} className='text-gray-400'/>
+                          <input required type='password' placeholder='Enter your password' value={password} onChange={(e) => {setPassword(e.target.value); setErr('')}} className='w-full outline-none text-gray-500 text-sm font-medium'/>
+                        </div>
 
-                      <button className='w-full text-sm mt-2 px-4 py-2 bg-black text-white rounded-lg hover:scale-105 transition-all duration-200 cursor-pointer disabled:bg-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed disabled:opacity-50' 
-                        disabled={loading} onClick={handleSignup}>
-                        {loading ? 'Signing up...' : 'Sign up'}
-                      </button>
+                        {err && (
+                          <div className='w-full bg-red-100 text-red-500 text-sm px-3 py-2 rounded-lg mt-2 border-dashed border border-red-400 flex items-center justify-center'>
+                            {err}
+                          </div>
+                        )}
+
+                        <button className='w-full text-sm mt-2 px-4 py-2 bg-black text-white rounded-lg hover:scale-105 transition-all duration-200 cursor-pointer disabled:bg-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed disabled:opacity-50' 
+                          disabled={loading} type='submit'>
+                          {loading ? 'Send OTP...' : 'Send OTP'}
+                        </button>
+                      </form>
                       <p className='text-xs text-gray-500 mt-4'>Already have an account? <span className='text-black font-medium cursor-pointer text-sm hover:underline transition-all duration-200' 
                         onClick={() => setStep('login')}>Login </span></p>
+                  </motion.div>
+                )}
+
+                {step === 'otp' && (
+                  <motion.div
+                    initial={{ opacity: 0, x:30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.45, ease: 'easeInOut' }}
+                    className='flex flex-col items-center justify-center gap-3'>
+                      <h1 className='text-center mb-3 font-medium'>Enter OTP</h1>
+                      <form className='w-full flex flex-col items-center justify-center gap-3'
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleSignup();
+                        }}
+                      >
+                        <div className='w-full flex items-center gap-3 justify-center'>
+                          {
+                            otp.map((digit,i)=>(
+                              <input key={i} required type='text'
+                                id={`otp-${i}`}
+                                maxLength={1} 
+                                value={digit}
+                                onChange={(e) => {
+                                  handleOtpChange(i , e.target.value);
+                                }}                                
+                                className='w-10 h-10 border border-gray-300 rounded-lg text-center text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black'/>
+                            ))
+                          }
+                        </div>
+
+                        {err && (
+                          <div className='w-full bg-red-100 text-red-500 text-sm px-3 py-2 rounded-lg mt-2 border-dashed border border-red-400 flex items-center justify-center'>
+                            {err}
+                          </div>
+                        )}
+
+
+                        <button className={`w-full text-sm mt-2 px-4 py-2 bg-black text-white rounded-lg hover:scale-105 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-800  cursor-pointer ${loading ? 'cursor-not-allowed' : ''}`}
+                          disabled={loading}
+                          type='submit'>
+                          {loading ? 'Verifying OTP...' : 'Verify OTP and Create Account'}
+                        </button>
+                      </form>
                   </motion.div>
                 )}
               </div>

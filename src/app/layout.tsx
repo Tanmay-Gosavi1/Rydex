@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Outfit } from "next/font/google";
-import Provider from "@/libs/Provider";
+import Provider from "@/wrappers/SessionProvider";
+import ReduxWrapper from "@/wrappers/ReduxWrapper";
+import InitUser from "./InitUser";
 
 
 const outfit = Outfit({
@@ -29,7 +31,10 @@ export default function RootLayout({
     >
       <body className={`${outfit.className} min-h-full flex flex-col`}>
         <Provider>
-          {children}
+          <ReduxWrapper>
+            <InitUser />
+            {children}
+          </ReduxWrapper>
         </Provider>
       </body>
     </html>

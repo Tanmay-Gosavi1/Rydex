@@ -11,6 +11,9 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import AuthModal from './AuthModal'
+import { useDispatch, useSelector } from 'react-redux'
+import { AppDispatch, RootState } from '@/redux/store'
+import { setUserData } from '@/redux/slices/userSlice'
 
 
 const NAV_LINKS = [
@@ -21,10 +24,9 @@ const NAV_LINKS = [
 ]
 
 const Navbar = () => {
-    const { data: session } = useSession()
-    const user = session?.user
-    const isAuthenticated = Boolean(user)
-    // const isAdmin = user?.role === 'admin'
+    const {userData} = useSelector((state: RootState) => state.user)
+    const dispatch = useDispatch<AppDispatch>()
+    
 
     const [isAuthOpen, setIsAuthOpen] = useState(false);
     const router = useRouter()
@@ -33,6 +35,7 @@ const Navbar = () => {
     const [menuOpen, setMenuOpen] = useState(false)
     const [userDropOpen, setUserDropOpen] = useState(false)
 
+    // Checks scrolling to add shadow and bg to navbar
     useEffect(() => {
         const handler = () => setScrolled(window.scrollY > 20)
         window.addEventListener('scroll', handler)
@@ -54,6 +57,7 @@ const Navbar = () => {
 
     const handleLogout = async () => {
         await signOut({ callbackUrl: '/' })
+        dispatch(setUserData(null))
     }
 
     return (
@@ -85,7 +89,7 @@ const Navbar = () => {
 
                     {/* Auth */}
                     <div className="hidden md:flex items-center gap-3">
-                        {!isAuthenticated ? (
+                        {!userData ? (
                             <button onClick={() => setIsAuthOpen(true)}
                                 className="px-5 py-2.5 bg-black text-white text-sm font-semibold rounded-full hover:bg-gray-800 transition-all hover:scale-105 cursor-pointer active:scale-95">
                                 Get Started
@@ -95,11 +99,11 @@ const Navbar = () => {
                                 <button onClick={() => setUserDropOpen((v) => !v)}
                                     className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer">
                                     <div className="w-8 h-8 rounded-lg bg-black text-white text-sm font-bold flex items-center justify-center">
-                                        {user?.name?.charAt(0).toUpperCase()}
+                                        {userData?.username?.charAt(0).toUpperCase()}
                                     </div>
                                     <div className="text-left hidden sm:block">
-                                        <p className="text-sm font-semibold leading-none">{user?.name}</p>
-                                        <p className="text-xs text-gray-500 mt-0.5 truncate max-w-30">{user?.email}</p>
+                                        <p className="text-sm font-semibold leading-none">{userData?.username}</p>
+                                        <p className="text-xs text-gray-500 mt-0.5 truncate max-w-30">{userData?.email}</p>
                                     </div>
                                     <ChevronDown size={14} className={`text-gray-500 transition-transform ${userDropOpen ? 'rotate-180' : ''}`} />
                                 </button>
@@ -111,7 +115,7 @@ const Navbar = () => {
                                             exit={{ opacity: 0, y: 8, scale: 0.95 }} transition={{ duration: 0.15 }}
                                             className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-50 cursor-pointer">
 
-                                            <button onClick={() => { handleNavigate('/partner/onboarding/vehicle'); setUserDropOpen(false) }}
+                                            {userData.role !== 'partner' && <button onClick={() => { handleNavigate('/partner/onboarding/vehicle'); setUserDropOpen(false) }}
                                                 className="relative w-full px-4 py-3 text-sm font-medium text-left hover:bg-green-50 h-10 transition-colors flex items-center cursor-pointer ">
                                                     <div className='absolute top-3 left-2 w-5 h-5 flex items-center justify-center rounded-full bg-black text-white'>
                                                         <span><Car size={14}/></span>
@@ -123,7 +127,7 @@ const Navbar = () => {
                                                         <span><CarFront size={14}/></span>
                                                     </div>
                                                     <h1 className='absolute top-3 left-15'>Become a partner</h1>
-                                            </button>
+                                            </button>}
 
                                             <div className="border-t border-gray-100" />
                                             <button onClick={() => { handleNavigate('/profile'); setUserDropOpen(false) }}
@@ -160,7 +164,7 @@ const Navbar = () => {
                                 </Link>
                             ))}
                             <div className="pt-3 border-t border-gray-100 mt-2">
-                                {!isAuthenticated ? (
+                                {!userData ? (
                                     <button onClick={() => { setIsAuthOpen(true); setMenuOpen(false) }}
                                         className="w-full py-3 bg-black text-white text-sm font-semibold rounded-xl">Get Started</button>
                                 ) : (
